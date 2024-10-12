@@ -19,8 +19,10 @@ if Gem.win_platform?
 else
   if system("which pbcopy > /dev/null 2>&1")
     IO.popen("pbcopy", "w") { |f| f << cmd }
+    puts "'#{cmd}' copied and ready to paste"
   elsif system("which xclip > /dev/null 2>&1")
     IO.popen("xclip -selection clipboard", "w") { |f| f << cmd }
+    puts "'#{cmd}' copied and ready to paste"
   else
     puts "no clipboard utility found :/"
     exit 1
