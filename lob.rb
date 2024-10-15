@@ -13,24 +13,6 @@ OptionParser.new do |opts|
   opts.on("-h", "--hot", "get hottest") { options[:hot] = true }
 end.parse!
 
-
-# def check_for_matches(input, data)
-#   matches = data.each_with_object([]) do |p, l|
-#     if p["title"].downcase.start_with?(input) || p["short_id"].downcase.start_with?(input)
-#       l.push(p)
-#     end
-#   end
-#   if matches.length > 1
-#     puts "multiple matches found: #{matches}"
-#     exit 1
-#   end
-#   if matches.length == 0
-#     puts "no matches found"
-#     exit 1
-#   end
-#   return matches[0]
-# end
-
 def find_single_match(input, data)
   matches = data.select do |p|
     p["title"].downcase.start_with?(input) || p["short_id"].downcase.start_with?(input)
@@ -67,13 +49,17 @@ parsed_posts.each do |p|
     url:            #{p["url"]}
     tags:           #{p["tags"]}
     comment count:  #{p["comment_count"]}
-    id:             #{p["short_id"]}
+    id:             #{p["short_id"]}\n
   OUTPUT
 end
 
 puts "type 'open <id>' to open the url in a browser, the <id> to see the post's comments, or press any key to quit."
-puts "(you can enter a fragment of a post's title instead of the id)"
+puts "(you can enter a fragment of a post's title instead of the id, or 'exit' to quit)"
 input = gets.chomp.rstrip.downcase
+
+if input == 'exit'
+  exit 0
+end
 
 if input.start_with?("open ")
   if input.length < 6
