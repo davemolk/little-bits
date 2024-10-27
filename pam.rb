@@ -3,6 +3,7 @@
 require 'json'
 require 'shellwords'
 require 'optparse'
+require 'prettyprint'
 
 class PatternManager
   DEFAULT_PATH = '.pam'
@@ -11,6 +12,15 @@ class PatternManager
     @options = options
     @config_path = File.join(ENV['HOME'], options[:path] || DEFAULT_PATH)
     Dir.mkdir(@config_path) unless Dir.exist?(@config_path)
+  end
+
+  def all
+    Dir.chdir(@config_path)
+    files = Dir.glob("*")
+    files.each_with_object({}) do |file, obj|
+      data = JSON.parse(File.read(file))
+      obj[data["name"]] = data
+    end
   end
 
   def get_patterns
@@ -43,60 +53,26 @@ class PatternManager
     path = File.join(@config_path, "#{name}.json")
     File.delete(path) if File.exist? path
   end
-end
 
-def main
-  options = {}
-  OptionParser.new do |opts|
-    opts.banner = "usage: pam [options]"
-    opts.on("-l", "--list", "list patterns") { options[:list] = true }
-    opts.on("-s", "--save", "save pattern") { options[:save] = true }
-    opts.on("-d", "--dump", "dump a pattern without running it") { options[:dump] = true}
-    opts.on("-pPATH", "--path=PATH", "path to files") { |p| options[:path] = p }
-    opts.on("-r", "--remove", "delete pattern") { options[:remove] = true }
-  end.parse!
+  def run_cmd(name, targets)
+    pattern = get_pattern(name)
 
-  pam = PatternManager.new(options)
-
-  begin
-    if options[:list]
-      puts pam.get_patterns
-      exit 0
+    unless pattern['flags'].start_with?("-") || pattern['flags'].nil?
+      pattern['flags'] = "-#{pattern['flags']}"
     end
 
-    if options[:remove]
-      if ARGV.empty?
-        puts "need a file name to delete"
-        exit 
-      end
-      pam.delete_pattern(ARGV[0])
-      puts "removed #{ARGV[0]}"
-      exit 0
-    end
-
-    if options[:save]
-      pam.validate_save_params(ARGV)
-      name, *args = ARGV
-      pam.save(name, *args)
-      puts "saved #{name}"
-      exit 0
-    end
-
-    if ARGV.empty?
-      puts "need a pattern name and optionally one or more target directories."
-      exit 1
-    end
-
-    pattern_name = ARGV[0]
-    pattern = pam.get_pattern(pattern_name)
-
-    if options[:dump]
+    if @options[:dump]
       puts pattern['flags'].length != 0 ? "#{pattern['cmd']} #{pattern['flags']} #{pattern['pattern']}" : "#{pattern['cmd']} #{pattern['pattern']}"
       exit 0
     end
 
-    targets = ARGV[1..] || []
-    command = "#{Shellwords.escape(pattern['cmd'])} #{Shellwords.escape(pattern['flags'])} #{Shellwords.escape(pattern['pattern'])}"
+    command = "#{Shellwords.escape(pattern['cmd'])}"
+    if !pattern['flags'].nil?
+      command += " #{Shellwords.escape(pattern['flags'])}"
+    end
+    if !pattern['pattern'].nil?
+      command += " #{Shellwords.escape(pattern['pattern'])}"
+    end
 
     if targets.empty?    
       input = $stdin.read
@@ -106,10 +82,56 @@ def main
         system("#{command} #{Shellwords.escape(target)}")
       end
     end
-  rescue => e
-    puts "error: #{e}"
-    exit 1
   end
+
+  def run(args)
+    begin
+      case 
+      when @options[:all] 
+        pp all
+      when @options[:list]
+        puts get_patterns
+      when @options[:remove]
+        if args.empty?
+          puts "need a file name to delete"
+          exit 1
+        end
+        delete_pattern(args[0])
+        puts "removed #{args[0]}"  
+      when @options[:save]
+        validate_save_params(args)
+        name, *args = args
+        save(name, *args)
+        puts "saved #{name}"
+      else
+        if args.empty?
+          puts "need a pattern name and optionally one or more target directories."
+          exit 1
+        end
+        name = args[0]
+        targets = args[1..] || []
+        run_cmd(name, targets)
+      end
+    rescue => e
+      puts "error: #{e}"
+      exit 1
+    end
+  end
+end
+
+def main
+  options = {}
+  OptionParser.new do |opts|
+    opts.banner = "usage: pam [options]"
+    opts.on("-a", "--all", "dump all patterns") { options[:all] = true }
+    opts.on("-l", "--list", "list patterns") { options[:list] = true }
+    opts.on("-s", "--save", "save pattern") { options[:save] = true }
+    opts.on("-d", "--dump", "dump a pattern without running it") { options[:dump] = true}
+    opts.on("-pPATH", "--path=PATH", "path to files") { |p| options[:path] = p }
+    opts.on("-r", "--remove", "delete pattern") { options[:remove] = true }
+  end.parse!
+
+  PatternManager.new(options).run(ARGV)
 end
 
 if __FILE__ == $0
