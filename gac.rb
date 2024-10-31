@@ -3,51 +3,23 @@
 require 'open3'
 require 'optparse'
 
-def copy_to_clipboard(cmd)
-  if Gem.win_platform?
-    Open3.pop3('clip') do |stdin, _, _, _|
-      stdin.puts cmd
-    end
-  else
-    if system("which pbcopy > /dev/null 2>&1")
-      IO.popen("pbcopy", "w") { |f| f << cmd }
-      puts "'#{cmd}' copied and ready to paste"
-    elsif system("which xclip > /dev/null 2>&1")
-      IO.popen("xclip -selection clipboard", "w") { |f| f << cmd }
-      puts "'#{cmd}' copied and ready to paste"
-    else
-      puts "no clipboard utility found :/"
-      exit 1
-    end
-  end
-end
-
 def fuzzy_match(user_files, candidates)
-  to_commit = user_files.each_with_object([]) do |f, obj|
-    candidates.each do |c|
-      if c.start_with?(f)
-        obj << f
-      end
-    end
-  end
+  user_files.flat_map { |f| candidates.select { |c| c.start_with?(f) } }.join(", ")
 end
 
 def exact_match(user_files, candidates)
-  to_commit = user_files.each_with_object([]) do |f, obj|
-    if !candidates.include?(f)
-      puts "#{f} is not a candidate for a commit"
-      puts "possible candidates include: #{candidates}"
-      exit 1
-    else
-      obj << f
-    end
+  unmatched = user_files.reject { |f| candidates.include?(f) }
+  unless unmatched.empty?
+    puts "the following are not a candidate for a commit: #{unmatched.join(', ')}"
+    puts "possible candidates include: #{candidates.join(', ')}"
+    exit 1
   end
-  to_commit.join(", ")
+  user_files.join(", ")
 end
 
 options = {
-  :dry => false,
-  :exact => false,
+  dry: false,
+  exact: false,
 }
 OptionParser.new do |opts|
   opts.banner = <<~HELP
@@ -74,30 +46,25 @@ if commit_msg.nil?
   exit 1
 end
 
-output = %x{git diff --name-only}
-candidates = output.split("\n")
+output, status = Open3.capture2('git diff --name-only; git ls-files --others --exclude-standard')
+exit 1 unless status.success?
+
+candidates = output.lines(chomp: true)
 
 to_commit = "."
 
 unless user_files.empty?
-  if options[:exact]
-    to_commit = exact_match(user_files, candidates)
-  else
-    to_commit = fuzzy_match(user_files, candidates)
-  end
-  # to_commit = add_to_commit(files, candidates, options[:exact])
+  to_commit = options[:exact] ? exact_match(user_files, candidates) : fuzzy_match(user_files, candidates)
 end 
 
-first_cmd = "git add #{to_commit}"
-second_cmd = "git commit -m '#{commit_msg}'"
-third_cmd = "git push"
+commands = [ 
+  "git add #{to_commit}",
+  "git commit -m '#{commit_msg}'",
+  "git push"
 
+]
 if options[:dry]
-  puts first_cmd
-  puts second_cmd
-  puts third_cmd
+  puts commands.join("\n")
 else
-  system(first_cmd)
-  system(second_cmd)
-  system(third_cmd)
+  commands.each { |cmd| system(cmd) }
 end
