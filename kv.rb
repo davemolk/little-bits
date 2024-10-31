@@ -105,16 +105,16 @@ class KV
     @db = FileDB.new(@path)
   end
 
-  def command(cmd, key='', *value)
+  def command(cmd, key='', *values)
     case cmd
     when 'get' then get(key)
-    when 'set' then set(key, *value)
-    when 'add' then add(key, *value)
-    when 'delete' then delete(key, *value)
+    when 'set' then set(key, *values)
+    when 'add' then add(key, *values)
+    when 'delete' then delete(key, *values)
     when 'keys' then keys
     when 'dump' then dump
     when 'backup' then backup(key)
-    when 'replace' then replace(key, *value)
+    when 'replace' then replace(key, *values)
     when 'find' then find(key)
     when 'help', 'h' then help
     else
@@ -168,7 +168,17 @@ class KV
 
   def help
     puts <<~HELP
-    kv            outputs keys with item-count
+    kv                          outputs keys with item-count
+    kv get <key>                gets values for a key
+    kv set <key> <value(s)>     sets the value(s) for a key
+    kv add <key> <value(s)>     append values for a key
+    kv delete <key> <values(s)> deletes values from a key if provided, else deletes entire key
+    kv keys                     output all keys
+    kv dump                     dump the database to stdout
+    kv backup                   copy database to a new file
+    kv replace <key> <value>    
+    kv find
+    kv help
     HELP
   end
 end

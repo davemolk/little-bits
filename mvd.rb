@@ -69,7 +69,7 @@ usage = <<~HELP
     argument:
       name of bookmark
 
-    options
+    options:
       -l                  list bookmarks
       -a <bookmark>       add bookmark
       -d <bookmark>       delete bookmark
