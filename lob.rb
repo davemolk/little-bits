@@ -20,7 +20,7 @@ def find_single_match(input, data)
 
   case matches.length
   when 0
-    puts "not matches found"
+    puts "no matches found"
     exit 1
   when 1
     matches.first

@@ -21,6 +21,7 @@ options = {
   dry: false,
   exact: false,
 }
+
 OptionParser.new do |opts|
   opts.banner = <<~HELP
     usage:
@@ -61,10 +62,13 @@ commands = [
   "git add #{to_commit}",
   "git commit -m '#{commit_msg}'",
   "git push"
-
 ]
+
 if options[:dry]
   puts commands.join("\n")
 else
-  commands.each { |cmd| system(cmd) }
+  commands.each do |cmd| 
+    puts cmd
+    system(cmd) 
+  end
 end
