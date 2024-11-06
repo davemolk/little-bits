@@ -43,6 +43,10 @@ class FileDB
   def get(key)
     @data[key]
   end
+
+  def key_exist?(key)
+    @data.key?(key)
+  end
   
   def delete(key, *values)
     return delete_key(key) if values.empty?
@@ -132,20 +136,19 @@ class KV
   end
 
   def command(cmd, key='', *values)
-    case cmd
-    when 'get' then get(key)
-    when 'set' then set(key, *values)
-    when 'add' then add(key, *values)
-    when 'delete' then delete(key, *values)
-    when 'keys' then keys
-    when 'dump' then dump
-    when 'backup' then backup(key)
-    when 'replace' then replace(key, *values)
-    when 'find' then find(key)
-    when 'help', 'h' then help
+    return add(key, *values) if cmd == 'add'
+    return delete(key, *values) if cmd == 'delete'
+    return keys if cmd == 'keys'
+    return dump if cmd == 'dump'
+    return backup(key) if cmd == 'backup'
+    return replace(key, *values) if cmd == 'replace'
+    return find(key) if cmd == 'find'
+    return help if cmd == 'help' || cmd == 'h'
+      
+    if key.empty?
+      get(cmd)
     else
-      warn "unknown command: #{cmd}"
-      exit 1
+      set(cmd, [key, *values])
     end
   end
   
@@ -171,6 +174,11 @@ class KV
   
   def keys
     puts @db.keys
+  end
+
+  def key_exist?(key)
+    validate_key!(key)
+    @db.key_exist?(key)
   end
 
   def dump
@@ -206,8 +214,8 @@ class KV
     puts <<~HELP
     usage:
       kv                           list all keys with item count
-      kv get <key>                 gets values for a key
-      kv set <key> <value...>      sets value(s) for a key
+      kv <key>                     gets values for a key
+      kv <key> <value...>          sets value(s) for a key
       kv add <key> <value...>      append value(s) to a key
       kv delete <key> [value...]   delete key or specific values
       kv keys                      list all keys
@@ -243,7 +251,6 @@ end
 def main
   options = parse_options
   args = ARGV.map(&:downcase)
-
   kv = KV.new(options)
   args.empty? ? kv.overview : kv.command(*args)
 rescue StandardError => e
