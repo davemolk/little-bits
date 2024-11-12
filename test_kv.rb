@@ -64,7 +64,7 @@ class TestFileDB < Test::Unit::TestCase
   end
 
   def test_get_when_key_not_exist
-    assert_equal(nil, @db.get("test_key"))
+    assert_raises(RuntimeError, "value not found") { @db.get("test_key") }
   end
 
   def test_delete_specific_values
@@ -82,12 +82,12 @@ class TestFileDB < Test::Unit::TestCase
   def test_delete_key
     @db.set("test_key", "value1", "value2", "value3")
     @db.delete("test_key")
-    assert_nil(@db.get("test_key"))
+    assert_raises(RuntimeError, "value not found") { @db.get("test_key") }
   end
 
   def test_delete_key_not_exist
     @db.delete("test_key")
-    assert_nil(@db.get("test_key"))
+    assert_raises(RuntimeError, "value not found") { @db.get("test_key") }
   end
 
   def test_keys
@@ -103,7 +103,7 @@ class TestFileDB < Test::Unit::TestCase
   def test_replace_key
     @db.set("old_key", "value1", "value2")
     @db.replace("old_key", "new_key")
-    assert_nil(@db.get("old_key"))
+    assert_raises(RuntimeError, "value not found") { @db.get("old_key") }
     assert_equal(["value1", "value2"], @db.get("new_key"))
   end
 
@@ -111,7 +111,7 @@ class TestFileDB < Test::Unit::TestCase
     @db.set("old_key", "value1", "value2")
     @db.replace("no_key", "new_key")
     assert_equal(["value1", "value2"], @db.get("old_key"))
-    assert_nil(@db.get("new_key"))
+    assert_raises(RuntimeError, "value not found") { @db.get("test_key") }
   end
 
   def test_replace_value

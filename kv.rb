@@ -8,13 +8,13 @@ class FileDB
   def initialize(path)
     @file_path = File.join(path, 'db.json')
     FileUtils.touch(@file_path) unless File.exist?(@file_path)
-    @data = load_data
+    @data = load_data(@file_path)
   end
 
-  def load_data()
-    return {} unless File.exist?(@file_path) && !File.zero?(@file_path)
+  def load_data(path)
+    return {} unless File.exist?(path) && !File.zero?(path)
 
-    JSON.parse(File.read(@file_path))
+    JSON.parse(File.read(path))
   rescue JSON::ParserError => e
     warn "error reading json, resetting db: #{e.message}"
     {}
@@ -40,8 +40,33 @@ class FileDB
     save
   end
 
-  def get(key)
-    @data[key]
+  def get(key, copy_to_clipboard=false)
+    raise "value not found" unless !@data[key].nil?
+  
+    if !copy_to_clipboard
+      @data[key]
+    else
+      copy_to_clipboard(@data[key].first)
+    end
+  end
+
+  def copy_to_clipboard(value)
+    if Gem.win_platform?
+      Open3.pop3('clip') do |stdin, _, _, _|
+        stdin.puts value
+      end
+    else
+      if system("which pbcopy > /dev/null 2>&1")
+        IO.popen("pbcopy", "w") { |f| f << value }
+        puts "'#{value}' copied and ready to paste"
+      elsif system("which xclip > /dev/null 2>&1")
+        IO.popen("xclip -selection clipboard", "w") { |f| f << value }
+        puts "'#{value}' copied and ready to paste"
+      else
+        puts "no clipboard utility found :/"
+        exit 1
+      end
+    end
   end
 
   def key_exist?(key)
@@ -84,6 +109,11 @@ class FileDB
       find_matching_keys(query),
       find_matching_values(query),
     ]
+  end
+
+  def restore(path)
+    @data = load_data(path)
+    save
   end
 
   private
@@ -129,7 +159,9 @@ class KV
 
   def initialize(options)
     @path = File.join(ENV['HOME'], options[:path] || DEFAULT_PATH)
+    FileUtils.mkdir_p(@path) unless Dir.exist?(@path)
     @db = FileDB.new(@path)
+    @copy = options[:copy]
   rescue StandardError => e
     warn "error initializing db: #{e.message}"
     exit 1
@@ -144,17 +176,22 @@ class KV
     return replace(key, *values) if cmd == 'replace'
     return find(key) if cmd == 'find'
     return help if cmd == 'help' || cmd == 'h'
+    return undo if cmd == 'undo'
+    return restore(key) if cmd == 'restore'
       
     if key.empty?
-      get(cmd)
+      get(cmd, @copy)
     else
       set(cmd, [key, *values])
     end
   end
   
-  def get(key)
-    value = @db.get(key)
-    puts(value.nil? ? 'key not found' : value)
+  def get(key, copy_to_clipboard=false)
+    value = @db.get(key, copy_to_clipboard)
+    puts value if !copy_to_clipboard
+  rescue StandardError => e
+    warn "error: #{e.message}"
+    exit 1
   end
 
   def set(key, *value)
@@ -210,6 +247,13 @@ class KV
     puts "value results ([k, v]):   #{value_results}"
   end
 
+  def restore(path)
+    validate_path!(path)
+    @db.restore(path)
+  rescue StandardError => e
+    warn "error restoring from backup: #{e.message}"
+  end
+
   def help
     puts <<~HELP
     usage:
@@ -221,6 +265,7 @@ class KV
       kv keys                      list all keys
       kv dump                      dump the database to stdout
       kv backup                    backup database to a new file
+      kv restore <path>            restore database from a backup
       kv replace <key> <new_key>   rename a key
       kv replace <key> <old> <new> replace value in a given key  
       kv find <query>              search keys and values
@@ -241,9 +286,10 @@ end
 def parse_options
   options = {}
   OptionParser.new do |opts|
-    opts.banner = "Usage: kv [options] [command]"
+    opts.banner = "Usage: kv <options> [command]"
     opts.on("-pPATH", "--path=PATH", "path to db") { |p| options[:path] = p }
     opts.on("-h", "--help", "show this help") { puts opts; exit }
+    opts.on("-c", "--copy", "copy first value to clipboard") { options[:copy] = true }
   end.parse!
   options
 end
