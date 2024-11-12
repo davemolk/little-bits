@@ -11,12 +11,30 @@ repo_name = File.basename(URI.parse(REPO_URL).path, '.git')
 path = File.join(ENV['HOME'], '.rs')
 Dir.mkdir(path) unless Dir.exist?(path)
 
+work_path = File.join(path, "work.txt")
+
 def get_candidates(path)
   if !File.exist?(File.join(path, CANDIDATES))
     warn "no candidates found"
     exit 0
   end
   File.read(File.join(path, CANDIDATES))
+end
+
+def work_files(path)
+  if !File.exist?(path)
+    warn 'no work file'
+    exit 0
+  end
+  File.read(path).split("\n")
+end
+
+def help
+  puts <<~HELP
+    usage:
+      rs list      list out possible candidates (need a previous sync)
+      rs work      sync files for work (needs file at ~/.rs/work.txt)
+  HELP
 end
 
 args = ARGV.map(&:downcase)
@@ -27,9 +45,10 @@ if args.empty?
   exit 1
 end
 
-if args[0] == 'list'
-  puts get_candidates(path)
-  exit 0
+case args[0]
+when 'help', 'h', '-h', '--help' then help; exit 0
+when 'list', 'l', '-l', '--list' then puts get_candidates(path); exit 0
+when 'work', 'w', '-w', '--work' then args = work_files(work_path)
 end
 
 args.map! { |a| !a.end_with?(".rb") ? a.concat(".rb") : a }
