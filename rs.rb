@@ -34,8 +34,10 @@ def help
     usage:
       rs list      list out possible candidates (need a previous sync)
       rs work      sync files for work (needs file at ~/.rs/work.txt)
+      rs help      this help text :)
   HELP
 end
+
 
 args = ARGV.map(&:downcase)
 
@@ -48,11 +50,16 @@ end
 case args[0]
 when 'help', 'h', '-h', '--help' then help; exit 0
 when 'list', 'l', '-l', '--list' then puts get_candidates(path); exit 0
+when 'all', 'a', '-a', '--all' then args = []
 when 'work', 'w', '-w', '--work' then args = work_files(work_path)
 end
 
 args.map! { |a| !a.end_with?(".rb") ? a.concat(".rb") : a }
-puts "updating the following files: #{args}...\n"
+case args.length
+when 0 then puts "updating all files in repo"
+else
+  puts "updating the following files: #{args}...\n"
+end
 
 Dir.mktmpdir do |tmp_dir|
   Dir.chdir(tmp_dir) do
@@ -61,9 +68,12 @@ Dir.mktmpdir do |tmp_dir|
       # update candidate list
       files = Dir.glob("*.rb")
       File.write(File.join(path, CANDIDATES), files)
+      if args.empty?
+        args = files
+      end
       args.each do |f|
         unless File.exist?(f)
-          puts "\nfile not found: #{f}"
+          warn "ERROR: file not found: #{f}"
           next
         end
 
@@ -71,11 +81,12 @@ Dir.mktmpdir do |tmp_dir|
         name = File.basename(f, ".rb")
 
         begin
-          FileUtils.copy_file(f, "/usr/local/bin/#{name}")
+          # FileUtils.copy_file(f, "/usr/local/bin/#{name}")
+          system("cp #{f} /usr/local/bin/#{name}") unless name.start_with?("test")
         rescue Errno::EACCES => e
-          puts "permission error when copying #{f}: #{e.message}"
+          warn "ERROR: when copying #{f}: #{e.message}"
         end
-        puts "\n#{f} has been updated"
+        puts "#{f} has been updated"
       end
     end
   end

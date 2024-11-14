@@ -124,6 +124,7 @@ end
 
 options = {}
 OptionParser.new do |opts|
+  opts.banner = "usage: sd name <flags>"
   opts.on("-uFILE", "--update=FILE", "update from file") do |u| 
     options[:update] = u 
     options[:update_needed] = true
