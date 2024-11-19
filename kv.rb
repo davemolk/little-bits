@@ -7,7 +7,9 @@ require 'optparse'
 class FileDB
   def initialize(path)
     @file_path = File.join(path, 'db.json')
+    @tmp_path = File.join(path, 'db.tmp')
     FileUtils.touch(@file_path) unless File.exist?(@file_path)
+    FileUtils.touch(@tmp_path) unless File.exist?(@tmp_path)
     @data = load_data(@file_path)
   end
 
@@ -16,27 +18,22 @@ class FileDB
 
     JSON.parse(File.read(path))
   rescue JSON::ParserError => e
-    warn "error reading json, resetting db: #{e.message}"
+    warn "reading json, resetting db: #{e.message}"
     {}
-  end
-
-  def save
-    File.write(@file_path, JSON.pretty_generate(@data))
-  rescue StandardError => e
-    warn "error saving db: #{e.message}"
-    false
   end
   
   def set(key, *values)
     return if key.nil? || key.empty?
-    @data[key] = values
+    save_tmp(key)
+    @data[key] = values.flatten
     save
   end
 
   def add(key, *values)
     return if key.nil? || key.empty?
     @data[key] ||= []
-    @data[key] |= values
+    save_tmp(key)
+    @data[key] |= values.flatten
     save
   end
 
@@ -50,30 +47,8 @@ class FileDB
     end
   end
 
-  def copy_to_clipboard(value)
-    if Gem.win_platform?
-      Open3.pop3('clip') do |stdin, _, _, _|
-        stdin.puts value
-      end
-    else
-      if system("which pbcopy > /dev/null 2>&1")
-        IO.popen("pbcopy", "w") { |f| f << value }
-        puts "'#{value}' copied and ready to paste"
-      elsif system("which xclip > /dev/null 2>&1")
-        IO.popen("xclip -selection clipboard", "w") { |f| f << value }
-        puts "'#{value}' copied and ready to paste"
-      else
-        puts "no clipboard utility found :/"
-        exit 1
-      end
-    end
-  end
-
-  def key_exist?(key)
-    @data.key?(key)
-  end
-  
   def delete(key, *values)
+    save_tmp(key)
     return delete_key(key) if values.empty?
     delete_values(key, values)
   end
@@ -111,14 +86,89 @@ class FileDB
     ]
   end
 
-  def restore(path)
+  def restore_from_backup(path)
     @data = load_data(path)
     save
   end
 
+  def undo
+    # would happen if set is first operation, so undo
+    # file is created but empty
+    if File.zero?(@tmp_path)
+      key = @data.keys.first
+      delete_key(key, false)
+      puts "#{key} has been deleted"
+    end
+    # file's never big, slurp slurp slurp
+    lines = File.readlines(@tmp_path)
+    lines.each_with_index do |line, idx|
+      line.strip!
+      parts = line.split(":::")
+      key_to_delete, key_to_restore, value_to_restore = '', '', ''
+      case parts.length
+      when 2
+        key_to_restore, value_to_restore = parts
+        key_to_delete = key_to_restore
+      when 3
+        key_to_restore, key_to_delete, value_to_restore = parts
+      else
+        warn "#{line} is not properly formatted, skipping"
+      end
+      # clear the entry so we can restore from scratch
+      if idx == 0
+        delete_key(key_to_delete, false)
+      end
+      restore(key_to_restore, value_to_restore)
+    end
+    File.delete(@tmp_path)
+  end
+
   private
 
-  def delete_key(key)
+  def restore(key, value)
+    if !@data.key?(key)
+      @data[key] = [value]
+    else
+      @data[key].push(value)
+    end
+    save
+  end
+
+  def save
+    File.write(@file_path, JSON.pretty_generate(@data))
+  rescue StandardError => e
+    warn "saving db: #{e.message}"
+    false
+  end
+
+  def save_tmp(key)
+    unless @data[key].nil?
+      File.open(@tmp_path, 'w') do |f|
+        @data[key].each do |value|
+          f.puts("#{key}:::#{value}")
+        end
+      end
+    end
+  rescue StandardError => e
+    warn "saving tmp: #{e.message}"
+    false
+  end
+
+  def save_tmp_during_key_update(key, new_key)
+    unless @data[key].nil?
+      File.open(@tmp_path, 'w') do |f|
+        @data[key].each do |value|
+          f.puts("#{key}:::#{new_key}:::#{value}")
+        end
+      end
+    end
+  rescue StandardError => e
+    warn "saving tmp during key update: #{e.message}"
+    false
+  end
+
+  def delete_key(key, backup=true)
+    save_tmp(key) unless !backup
     @data.delete(key)
     save
   end
@@ -131,12 +181,14 @@ class FileDB
 
   def replace_key(old_key, new_key)
     return unless @data.key?(old_key)
+    save_tmp_during_key_update(old_key, new_key)
     @data[new_key] = @data.delete(old_key)
     save
   end
 
   def replace_value(key, old_value, new_value)
     return unless @data.key?(key)
+    save_tmp(key)
     @data[key].map! { |v| v == old_value ? new_value : v }
     save
   end
@@ -149,6 +201,25 @@ class FileDB
     @data.flat_map do |k, values|
       values.select { |v| v.include?(query) }
         .map { |v| [k, v]}
+    end
+  end
+
+  def copy_to_clipboard(value)
+    if Gem.win_platform?
+      Open3.pop3('clip') do |stdin, _, _, _|
+        stdin.puts value
+      end
+    else
+      if system("which pbcopy > /dev/null 2>&1")
+        IO.popen("pbcopy", "w") { |f| f << value }
+        puts "'#{value}' copied and ready to paste"
+      elsif system("which xclip > /dev/null 2>&1")
+        IO.popen("xclip -selection clipboard", "w") { |f| f << value }
+        puts "'#{value}' copied and ready to paste"
+      else
+        puts "no clipboard utility found :/"
+        exit 1
+      end
     end
   end
 end
@@ -177,7 +248,7 @@ class KV
     return find(key) if cmd == 'find'
     return help if cmd == 'help' || cmd == 'h'
     return undo if cmd == 'undo'
-    return restore(key) if cmd == 'restore'
+    return restore_from_backup(key) if cmd == 'restore'
       
     if key.empty?
       get(cmd, @copy)
@@ -185,20 +256,7 @@ class KV
       set(cmd, [key, *values])
     end
   end
-  
-  def get(key, copy_to_clipboard=false)
-    value = @db.get(key, copy_to_clipboard)
-    puts value if !copy_to_clipboard
-  rescue StandardError => e
-    warn "error: #{e.message}"
-    exit 1
-  end
 
-  def set(key, *value)
-    validate_key!(key)
-    @db.set(key, *value)
-  end
-  
   def add(key, *value)
     validate_key!(key)
     @db.add(key, *value)
@@ -213,11 +271,6 @@ class KV
     puts @db.keys
   end
 
-  def key_exist?(key)
-    validate_key!(key)
-    @db.key_exist?(key)
-  end
-
   def dump
     puts @db.dump_data
   end
@@ -229,10 +282,6 @@ class KV
     warn "error backing up: #{e.message}"
   end
 
-  def overview
-    puts @db.overview
-  end 
-
   def replace(key, *value)
     validate_key!(key)
     @db.replace(key, *value)
@@ -241,17 +290,38 @@ class KV
     exit 1
   end
 
+  def overview
+    puts @db.overview
+  end 
+
   def find(query)
     key_results, value_results = @db.search_all(query)
     puts "key results:              #{key_results}\n"
     puts "value results ([k, v]):   #{value_results}"
   end
 
-  def restore(path)
+  def undo
+    @db.undo
+  end
+
+  def restore_from_backup(path)
     validate_path!(path)
-    @db.restore(path)
+    @db.restore_from_backup(path)
   rescue StandardError => e
     warn "error restoring from backup: #{e.message}"
+  end
+
+  def get(key, copy_to_clipboard=false)
+    value = @db.get(key, copy_to_clipboard)
+    puts value if !copy_to_clipboard
+  rescue StandardError => e
+    warn "error: #{e.message}"
+    exit 1
+  end
+
+  def set(key, *value)
+    validate_key!(key)
+    @db.set(key, *value)
   end
 
   def help
@@ -262,6 +332,7 @@ class KV
       kv <key> <value...>          sets value(s) for a key
       kv add <key> <value...>      append value(s) to a key
       kv delete <key> [value...]   delete key or specific values
+      kv undo                      undo the previous action
       kv keys                      list all keys
       kv dump                      dump the database to stdout
       kv backup                    backup database to a new file

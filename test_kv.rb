@@ -19,12 +19,16 @@ class TestFileDB < Test::Unit::TestCase
   def test_set_and_get
     @db.set("test_key", "value1", "value2")
     assert_equal(["value1", "value2"], @db.get("test_key"))
+    @db.undo
+    assert_empty(@db.keys)
   end
 
   def test_set_overwrites_previous
     @db.set("test_key", "value1", "value2")
     @db.set("test_key", "value3", "value4")
     assert_equal(["value3", "value4"], @db.get("test_key"))
+    @db.undo
+    assert_equal(["value1", "value2"], @db.get("test_key"))
   end
 
   def test_set_empty
@@ -42,12 +46,16 @@ class TestFileDB < Test::Unit::TestCase
     @db.set("test_key", "value1")
     @db.add("test_key", "value2", "value3")
     assert_equal(["value1", "value2", "value3"], @db.get("test_key"))
+    @db.undo
+    assert_equal(["value1"], @db.get("test_key"))
   end
 
   def test_add_duplicates
     @db.set("test_key", "value1", "value2")
     @db.add("test_key", "value2", "value3")
     assert_equal(["value1", "value2", "value3"], @db.get("test_key"))
+    @db.undo
+    assert_equal(["value1", "value2"], @db.get("test_key"))
   end
 
   def test_add_empty_key
@@ -71,11 +79,15 @@ class TestFileDB < Test::Unit::TestCase
     @db.set("test_key", "value1", "value2", "value3")
     @db.delete("test_key", "value2", "value3")
     assert_equal(["value1"], @db.get("test_key"))
+    @db.undo
+    assert_equal(["value1", "value2", "value3"], @db.get("test_key"))
   end
 
   def test_delete_value_not_exist
     @db.set("test_key", "value1", "value2", "value3")
     @db.delete("test_key", "value4")
+    assert_equal(["value1", "value2", "value3"], @db.get("test_key"))
+    @db.undo
     assert_equal(["value1", "value2", "value3"], @db.get("test_key"))
   end
   
@@ -83,6 +95,8 @@ class TestFileDB < Test::Unit::TestCase
     @db.set("test_key", "value1", "value2", "value3")
     @db.delete("test_key")
     assert_raises(RuntimeError, "value not found") { @db.get("test_key") }
+    @db.undo
+    assert_equal(["value1", "value2", "value3"], @db.get("test_key"))
   end
 
   def test_delete_key_not_exist
@@ -105,6 +119,9 @@ class TestFileDB < Test::Unit::TestCase
     @db.replace("old_key", "new_key")
     assert_raises(RuntimeError, "value not found") { @db.get("old_key") }
     assert_equal(["value1", "value2"], @db.get("new_key"))
+    @db.undo
+    assert_equal(["value1", "value2"], @db.get("old_key"))
+    assert_raises(RuntimeError, "value not found") { @db.get("new_key") }
   end
 
   def test_replace_key_not_exist
@@ -118,6 +135,8 @@ class TestFileDB < Test::Unit::TestCase
     @db.set("test_key", "old_value")
     @db.replace("test_key", "old_value", "new_value")
     assert_equal(["new_value"], @db.get("test_key"))
+    @db.undo
+    assert_equal(["old_value"], @db.get("test_key"))
   end
 
   def test_replace_value_not_exist

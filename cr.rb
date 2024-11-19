@@ -8,7 +8,6 @@ def clean_cargo_in_directories(base_dir)
   dirs = Dir.glob("*").select { |f| File.directory?(f) }
   puts "found directories: #{dirs}"
   dirs.each { |d| clean_directory(curr + d) }
-  
 end
 
 def clean_directory(directory)
