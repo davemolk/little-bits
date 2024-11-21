@@ -21,6 +21,11 @@ class FileDB
     warn "reading json, resetting db: #{e.message}"
     {}
   end
+
+  def nuke
+    File.delete(@file_path) unless !File.exist?(@file_path)
+    File.delete(@tmp_path) unless !File.exist?(@tmp_path)
+  end
   
   def set(key, *values)
     return if key.nil? || key.empty?
@@ -248,6 +253,7 @@ class KV
     return find(key) if cmd == 'find'
     return help if cmd == 'help' || cmd == 'h'
     return undo if cmd == 'undo'
+    return nuke if cmd == 'nuke'
     return restore_from_backup(key) if cmd == 'restore'
       
     if key.empty?
@@ -304,6 +310,11 @@ class KV
     @db.undo
   end
 
+  def nuke
+    puts "obliterating db"
+    @db.nuke
+  end
+
   def restore_from_backup(path)
     validate_path!(path)
     @db.restore_from_backup(path)
@@ -336,10 +347,11 @@ class KV
       kv keys                      list all keys
       kv dump                      dump the database to stdout
       kv backup                    backup database to a new file
-      kv restore <path>            restore database from a backup
+      kv restore <backup_path>     restore database from a backup
       kv replace <key> <new_key>   rename a key
       kv replace <key> <old> <new> replace value in a given key  
       kv find <query>              search keys and values
+      kv nuke                      erase the db
       kv help                      show this help
     HELP
   end
