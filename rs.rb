@@ -39,7 +39,7 @@ def help
 end
 
 
-args = ARGV.map(&:downcase)
+args = ARGV
 
 if args.empty?
   warn "need to include some names..."

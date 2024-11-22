@@ -105,7 +105,7 @@ def get_urls(keywords)
   feeds.flatten.uniq
 end
 
-args = ARGV.map(&:downcase)
+args = ARGV
 
 case args[0]
 when 'help', 'h', '--help', '-h'

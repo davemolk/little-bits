@@ -41,7 +41,7 @@ OptionParser.new do |opts|
   opts.on("-e", "--exact", "use exact matching of file names") { options[:exact] = true }
 end.parse!
 
-commit_msg, *user_files = ARGV.map { |a| a.downcase }
+commit_msg, *user_files = ARGV
 if commit_msg.nil?
   puts "need a commit message"
   exit 1

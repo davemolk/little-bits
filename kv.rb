@@ -353,6 +353,10 @@ class KV
       kv find <query>              search keys and values
       kv nuke                      erase the db
       kv help                      show this help
+
+    flags:
+      -c, --copy                   copy first value to clipboard
+      -p, --path                   custom path to db file
     HELP
   end
 end
@@ -369,7 +373,6 @@ end
 def parse_options
   options = {}
   OptionParser.new do |opts|
-    opts.banner = "Usage: kv <options> [command]"
     opts.on("-pPATH", "--path=PATH", "path to db") { |p| options[:path] = p }
     opts.on("-h", "--help", "show this help") { puts opts; exit }
     opts.on("-c", "--copy", "copy first value to clipboard") { options[:copy] = true }
@@ -379,9 +382,8 @@ end
 
 def main
   options = parse_options
-  args = ARGV.map(&:downcase)
   kv = KV.new(options)
-  args.empty? ? kv.overview : kv.command(*args)
+  ARGV.empty? ? kv.overview : kv.command(*ARGV)
 rescue StandardError => e
   warn "error: #{e.message}"
   exit 1
