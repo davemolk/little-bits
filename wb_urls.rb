@@ -74,9 +74,6 @@ url = (build_url(domain, options[:limit]))
 url = "#{url}&from=#{options[:from]}" if options[:from]
 url = "#{url}&to=#{options[:to]}" if options[:to]
 
-puts url 
-exit 0
-
 data = get_data(url)
 
 # first is always the key
