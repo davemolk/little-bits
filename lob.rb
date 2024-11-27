@@ -1,8 +1,7 @@
 #!/usr/bin/env ruby
 
-require 'json'
-require 'httparty'
 require 'optparse'
+require './http_utils.rb'
 
 URL_HOTTEST = "https://lobste.rs/hottest.json"
 URL_NEWEST = "https://lobste.rs/newest.json"
@@ -30,18 +29,9 @@ def find_single_match(input, data)
   end
 end
 
-def fetch_data(url)
-  res = HTTParty.get(url)
-  raise "response error: #{res.code}" unless res.success?
-  JSON.parse(res.body)
-rescue JSON::ParserError
-  puts "error parsing response"
-  exit 1
-end
-
 url = options[:hot] ? URL_HOTTEST : URL_NEWEST
 
-parsed_posts = fetch_data(url)
+parsed_posts = HttpUtils.fetch_json_data(url)
 
 parsed_posts.each do |p|
   puts <<~OUTPUT
@@ -72,7 +62,7 @@ if input.start_with?("open ")
 else
   match = find_single_match(input, parsed_posts)
   comment_url = "https://lobste.rs/s/#{match["short_id"]}.json"
-  parsed_comments = fetch_data(comment_url)
+  parsed_comments = HttpUtils.fetch_json_data(comment_url)
 
   comment_depth = parsed_comments["comments"].each_with_object({}) do |c, m|
     m[c["short_id"]] = (m[c["parent_comment"]] || -1) + 1

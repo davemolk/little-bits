@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require './io_utils.rb'
 
 class MVD
   DEFAULT_FILE = ".bookmarks"
@@ -35,28 +36,9 @@ class MVD
     found = File.readlines(@file).find { |f| f.start_with?("#{bookmark}=")}
     if found
       path = found.split("=").last.strip
-      copy(path)
+      IoUtils.copy_to_clipboard(path)
     else
       puts "#{bookmark} not found"
-    end
-  end
-
-  def copy(bookmark)
-    if Gem.win_platform?
-      Open3.pop3('clip') do |stdin, _, _, _|
-        stdin.puts bookmark
-      end
-    else
-      if system("which pbcopy > /dev/null 2>&1")
-        IO.popen("pbcopy", "w") { |f| f << bookmark }
-        puts "'#{bookmark}' copied and ready to paste"
-      elsif system("which xclip > /dev/null 2>&1")
-        IO.popen("xclip -selection clipboard", "w") { |f| f << bookmark }
-        puts "'#{bookmark}' copied and ready to paste"
-      else
-        puts "no clipboard utility found :/"
-        exit 1
-      end
     end
   end
 end

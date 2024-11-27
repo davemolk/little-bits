@@ -1,10 +1,9 @@
 #!/usr/bin/env ruby
 
-require 'json'
 require 'optparse'
-require 'httparty'
 require 'date'
 require 'uri'
+require './http_utils.rb'
 
 
 # play around w/ https://github.com/internetarchive/wayback/tree/master/wayback-cdx-server if needed
@@ -12,16 +11,6 @@ require 'uri'
 def build_url(domain, limit)
   now = Time.now.to_i
   "https://web.archive.org/web/timemap/json?url=#{domain}&matchType=prefix&collapse=urlkey&output=json&fl=original%2Cmimetype%2Ctimestamp%2Cendtimestamp%2Cgroupcount%2Cuniqcount&filter=!statuscode%3A%5B45%5D..&limit=#{limit}&_=#{now}"
-end
-
-def get_data(url)
-  res = HTTParty.get(url)
-  raise "response error: #{res.code}" unless res.success?
-  JSON.parse(res.body)
-rescue JSON::ParserError
-  warn "error parsing response"
-  puts res.body
-  exit 1
 end
 
 def print_urls(data)
@@ -74,7 +63,7 @@ url = (build_url(domain, options[:limit]))
 url = "#{url}&from=#{options[:from]}" if options[:from]
 url = "#{url}&to=#{options[:to]}" if options[:to]
 
-data = get_data(url)
+data = HttpUtils.fetch_json_data(url)
 
 # first is always the key
 if data.length < 2

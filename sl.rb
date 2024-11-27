@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
 require 'httparty'
-require 'json'
 require 'date'
+require './http_utils.rb'
 
 CONFIG_PATH = File.join(ENV['HOME'], "/.lunch/config.json")
 
@@ -34,19 +34,6 @@ def build_url(school_id, grade, date)
   "#{base}#{school_id}&ServingDate=#{date}&ServingLine=Traditional%20Lunch&MealType=Lunch&Grade=#{grade}&PersonId=null"
 end
 
-def get_lunch(url)
-  res = HTTParty.get(url)
-  unless res.code == 200
-    puts "got response code: #{res.code}"
-    puts res.body
-    exit 1
-  end
-  JSON.parse(res.body)
-rescue JSON::ParserError
-  puts "error parsing json"
-  exit 1
-end
-
 def display_lunch(lunch)
   # because that one day they used entrees...
   ['ENTREE', 'ENTREES'].each do |key|
@@ -64,5 +51,5 @@ grade = config["grade"]
 url = build_url(school_id, grade, date)
 
 puts "checking school lunch...\n\n"
-lunch = get_lunch(url)
+lunch = HttpUtils.fetch_json_data(url)
 display_lunch(lunch)
