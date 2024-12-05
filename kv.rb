@@ -4,14 +4,35 @@ require 'json'
 require 'fileutils'
 require 'optparse'
 require './io_utils.rb'
+require 'date'
 
 class FileDB
-  def initialize(path)
-    @file_path = File.join(path, 'db.json')
-    @tmp_path = File.join(path, 'db.tmp')
+  # needs the backup duration 
+  def initialize(path, disable_backups)
+    @dir_path = path
+    @file_path = File.join(@dir_path, 'db.json')
+    @tmp_path = File.join(@dir_path, 'db.tmp')
+    @auto_backup_path = File.join(@dir_path, 'auto_backup.json')
+    @last_backup_path = File.join(@dir_path, 'last_backup.txt')
     FileUtils.touch(@file_path) unless File.exist?(@file_path)
     FileUtils.touch(@tmp_path) unless File.exist?(@tmp_path)
+    FileUtils.touch(@last_backup_path) unless File.exist?(@last_backup_path)
     @data = load_data(@file_path)
+    backup_if_necessary if !disable_backups
+  end
+
+  def backup_if_necessary
+    if File.zero?(@last_backup_path)
+      File.write(@last_backup_path, Time.now.to_i)
+      return
+    end
+    last_backup = Time.at(File.read(@last_backup_path).to_i)
+    # backup if more than a day has passed
+    if Time.now - last_backup > 86400
+      puts "performing auto-backup, stand by..."
+      File.write(@auto_backup_path, dump_data)
+      File.write(@last_backup_path, Time.now.to_i) 
+    end
   end
 
   def load_data(path)
@@ -65,6 +86,11 @@ class FileDB
 
   def dump_data
     JSON.pretty_generate(@data)
+  end
+
+  def backup(path)
+    File.write(path, dump_data)
+    puts "backup successful"
   end
 
   def overview
@@ -218,7 +244,7 @@ class KV
   def initialize(options)
     @path = File.join(ENV['HOME'], options[:path] || DEFAULT_PATH)
     FileUtils.mkdir_p(@path) unless Dir.exist?(@path)
-    @db = FileDB.new(@path)
+    @db = FileDB.new(@path, options[:disable])
     @copy = options[:copy]
   rescue StandardError => e
     warn "error initializing db: #{e.message}"
@@ -264,8 +290,7 @@ class KV
   end
 
   def backup(path)
-    validate_path!(path)
-    File.write(path, @db.dump_data)
+    @db.backup(path)
   rescue StandardError => e
     warn "error backing up: #{e.message}"
   end
@@ -338,6 +363,7 @@ class KV
 
     flags:
       -c, --copy                   copy first value to clipboard
+      -d, --disable-backups        disable automatic backups (default is daily backups)                
       -p, --path                   custom path to db file
     HELP
   end
@@ -358,6 +384,7 @@ def parse_options
     opts.on("-pPATH", "--path=PATH", "path to db") { |p| options[:path] = p }
     opts.on("-h", "--help", "show this help") { puts opts; exit }
     opts.on("-c", "--copy", "copy first value to clipboard") { options[:copy] = true }
+    opts.on("-d", "--disable-backups", "disable automatic backups (default is daily backups)") { options[:disable] = true }
   end.parse!
   options
 end
