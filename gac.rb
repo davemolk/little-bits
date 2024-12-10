@@ -36,9 +36,11 @@ OptionParser.new do |opts|
     -h, --help      help me
     -d, --dry       print to stdout but don't execute
     -e, --exact     use exact matching of file names
+    -s, --skip      add [skip-ci] to commit message
   HELP
   opts.on("-d", "--dry", "print to stdout but don't execute") { options[:dry] = true }
   opts.on("-e", "--exact", "use exact matching of file names") { options[:exact] = true }
+  opts.on("-s", "--skip", "add [skip-ci] to commit message") { options[:skip] = true }
 end.parse!
 
 commit_msg, *user_files = ARGV
@@ -46,6 +48,8 @@ if commit_msg.nil?
   puts "need a commit message"
   exit 1
 end
+
+commit_msg += " [skip-ci]" if options[:skip]
 
 output, status = Open3.capture2('git diff --name-only; git ls-files --others --exclude-standard')
 exit 1 unless status.success?
