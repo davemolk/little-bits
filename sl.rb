@@ -4,7 +4,7 @@ require 'httparty'
 require 'date'
 require './http_utils.rb'
 
-CONFIG_PATH = File.join(ENV['HOME'], "/.lunch/config.json")
+CONFIG_PATH = File.join(ENV['HOME'], ".lunch/config.json")
 
 def load_config
   JSON.parse(File.read(CONFIG_PATH))

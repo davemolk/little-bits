@@ -47,9 +47,7 @@ puts "type 'open <id>' to open the url in a browser, the <id> to see the post's 
 puts "(you can enter a fragment of a post's title instead of the id, or 'exit' to quit)"
 input = gets.chomp.rstrip.downcase
 
-if input == 'exit'
-  exit 0
-end
+exit 0 if input == 'exit'
 
 if input.start_with?("open ")
   if input.length < 6
@@ -61,6 +59,10 @@ if input.start_with?("open ")
   system("open #{match["url"]}")
 else
   match = find_single_match(input, parsed_posts)
+  if match["comment_count"] == 0
+    warn("#{match["title"]} has no comments")
+    exit 1
+  end
   comment_url = "https://lobste.rs/s/#{match["short_id"]}.json"
   parsed_comments = HttpUtils.fetch_json_data(comment_url)
 
