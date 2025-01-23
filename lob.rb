@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'optparse'
-require './http_utils.rb'
+require File.expand_path('http_utils.rb', File.dirname(__FILE__))
 
 URL_HOTTEST = "https://lobste.rs/hottest.json"
 URL_NEWEST = "https://lobste.rs/newest.json"

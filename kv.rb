@@ -3,7 +3,7 @@
 require 'json'
 require 'fileutils'
 require 'optparse'
-require './io_utils.rb'
+require File.expand_path('io_utils.rb', File.dirname(__FILE__))
 require 'date'
 
 class FileDB

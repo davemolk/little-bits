@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'open3'
-require './io_utils.rb'
+require File.expand_path('io_utils.rb', File.dirname(__FILE__))
 
 branch_name, status = Open3.capture2("git branch --show-current")
 if !status.success?

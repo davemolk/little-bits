@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
+require File.expand_path('http_utils.rb', File.dirname(__FILE__))
 require 'httparty'
 require 'date'
-require './http_utils.rb'
 
 CONFIG_PATH = File.join(ENV['HOME'], ".lunch/config.json")
 

@@ -44,16 +44,16 @@ when 'c'
   clean_cargo_in_directories(Dir.pwd)
 when 'cl'
   puts 'running clippy'
-  system "cargo clippy", exception: true, out: File::NULL
+  system "cargo clippy", exception: true
 when 'd'
   puts 'running cargo docs --open'
   system "cargo doc --open", exception: true, out: File::NULL
 when 'r'
   puts 'running...'
-  system "cargo run", exception: true, out: File::NULL
+  system "cargo run", exception: true
 when 't'
   puts 'testing...'
-  system "cargo test", exception: true, out: File::NULL
+  system "cargo test", exception: true
 else
   puts usage
   exit 1

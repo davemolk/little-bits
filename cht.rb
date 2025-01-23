@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require './io_utils.rb'
+require File.expand_path('io_utils.rb', File.dirname(__FILE__))
 require 'optparse'
 
 options = {}

@@ -3,8 +3,8 @@
 require 'optparse'
 require 'fileutils'
 require 'securerandom'
-require './io_utils.rb'
-require './http_utils.rb'
+require File.expand_path('io_utils.rb', File.dirname(__FILE__))
+require File.expand_path('http_utils.rb', File.dirname(__FILE__))
 
 class PW
   DEFAULT_DIR = ".pw"

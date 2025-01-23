@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
-require './io_utils.rb'
+require File.expand_path('io_utils.rb', File.dirname(__FILE__))
 
 class MVD
   DEFAULT_FILE = ".bookmarks"
