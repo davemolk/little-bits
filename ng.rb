@@ -4,7 +4,7 @@ require File.expand_path('io_utils.rb', File.dirname(__FILE__))
 
 branch_name, status = Open3.capture2("git branch --show-current")
 if !status.success?
-  puts "bad status #{status}"
+  warns "bad status #{status}"
   exit 1
 end
 

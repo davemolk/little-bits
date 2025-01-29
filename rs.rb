@@ -9,12 +9,12 @@ REPO_URL = 'https://github.com/davemolk/little-bits'
 repo_name = File.basename(URI.parse(REPO_URL).path, '.git')
 
 path = File.join(ENV['HOME'], '.rs')
-Dir.mkdir(path) unless Dir.exist?(path)
+FileUtils.mkdir_p(path)
 
 work_path = File.join(path, "work.txt")
 
 def get_candidates(path)
-  if !File.exist?(File.join(path, CANDIDATES))
+  unless File.exist?(File.join(path, CANDIDATES))
     warn "no candidates found"
     exit 0
   end

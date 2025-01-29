@@ -341,32 +341,6 @@ class KV
     validate_key!(key)
     @db.set(key, *value)
   end
-
-  def help
-    puts <<~HELP
-    usage:
-      kv                           list all keys with item count
-      kv <key>                     gets values for a key
-      kv <key> <value...>          sets value(s) for a key
-      kv add <key> <value...>      append value(s) to a key
-      kv delete <key> [value...]   delete key or specific values
-      kv undo                      undo the previous action
-      kv keys                      list all keys
-      kv dump                      dump the database to stdout
-      kv backup                    backup database to a new file
-      kv restore <backup_path>     restore database from a backup
-      kv replace <key> <new_key>   rename a key
-      kv replace <key> <old> <new> replace value in a given key  
-      kv find <query>              search keys and values
-      kv nuke                      erase the db
-      kv help                      show this help
-
-    flags:
-      -c, --copy                   copy first value to clipboard
-      -d, --disable-backups        disable automatic backups (default is daily backups)                
-      -p, --path                   custom path to db file
-    HELP
-  end
 end
 
 def validate_key!(key)
@@ -378,11 +352,37 @@ def validate_path!(path)
   raise ArgumentError, "directory doesn't exist" unless File.directory?(File.dirname(path))
 end
 
+def help
+  puts <<~HELP
+  usage:
+    kv                           list all keys with item count
+    kv <key>                     gets values for a key
+    kv <key> <value...>          sets value(s) for a key
+    kv add <key> <value...>      append value(s) to a key
+    kv delete <key> [value...]   delete key or specific values
+    kv undo                      undo the previous action
+    kv keys                      list all keys
+    kv dump                      dump the database to stdout
+    kv backup                    backup database to a new file
+    kv restore <backup_path>     restore database from a backup
+    kv replace <key> <new_key>   rename a key
+    kv replace <key> <old> <new> replace value in a given key  
+    kv find <query>              search keys and values
+    kv nuke                      erase the db
+    kv help                      show this help
+
+  flags:
+    -c, --copy                   copy first value to clipboard
+    -d, --disable-backups        disable automatic backups (default is daily backups)                
+    -p, --path                   custom path to db file
+  HELP
+end
+
 def parse_options
   options = {}
   OptionParser.new do |opts|
-    opts.on("-pPATH", "--path=PATH", "path to db") { |p| options[:path] = p }
-    opts.on("-h", "--help", "show this help") { puts opts; exit }
+    opts.on("-p=PATH", "--path=PATH", "path to db") { |p| options[:path] = p }
+    opts.on("-h", "--help", "show this help") { help; exit 0 }
     opts.on("-c", "--copy", "copy first value to clipboard") { options[:copy] = true }
     opts.on("-d", "--disable-backups", "disable automatic backups (default is daily backups)") { options[:disable] = true }
   end.parse!

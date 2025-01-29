@@ -10,7 +10,7 @@ OptionParser.new do |opts|
 end.parse!
 
 unless ARGV.length == 1
-  puts "need a file (and only one)"
+  warn "need a file (and only one)"
   exit 1
 end
 

@@ -4,7 +4,7 @@ require 'open3'
 require 'optparse'
 
 def fuzzy_match(user_files, candidates)
-  user_files.flat_map { |f| candidates.select { |c| c.start_with?(f) } }.join(", ")
+  user_files.flat_map { |f| candidates.select { |c| c.include?(f) } }.join(", ")
 end
 
 def exact_match(user_files, candidates)
@@ -22,10 +22,10 @@ options = {
   exact: false,
 }
 
-OptionParser.new do |opts|
-  opts.banner = <<~HELP
+def help
+  puts <<~HELP
     usage:
-    gac [arguments] [options]
+    gac <argument...> [options]
 
     first argument:
       your commit message
@@ -37,10 +37,16 @@ OptionParser.new do |opts|
     -d, --dry       print to stdout but don't execute
     -e, --exact     use exact matching of file names
     -s, --skip      add [skip-ci] to commit message
+    -n, --new       add -u origin <branch-name> on push
   HELP
+end
+
+OptionParser.new do |opts|
+  opts.on("-h", "--help", "get help!") { help; exit 0 }
   opts.on("-d", "--dry", "print to stdout but don't execute") { options[:dry] = true }
   opts.on("-e", "--exact", "use exact matching of file names") { options[:exact] = true }
   opts.on("-s", "--skip", "add [skip-ci] to commit message") { options[:skip] = true }
+  opts.on("-n", "--new", "add -u origin <branch-name> on push") { options[:new] = true }
 end.parse!
 
 commit_msg, *user_files = ARGV
@@ -67,6 +73,12 @@ commands = [
   "git commit -m '#{commit_msg}'",
   "git push"
 ]
+
+if options[:new]
+  branch_name, status = Open3.capture2("git branch --show-current")
+  exit 1 unless status.success?
+  commands[2] = commands[2] + " -u origin #{branch_name}"
+end
 
 if options[:dry]
   puts commands.join("\n")
