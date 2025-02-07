@@ -20,7 +20,7 @@ end
 
 def gm(extra)
   cmd = "journalctl -u galaxy-migrate"
-  cmd += " #{extra}" if extra
+  extra ? cmd += " #{extra}" : cmd += " -f" 
   return cmd
 end
 
