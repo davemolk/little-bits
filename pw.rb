@@ -6,8 +6,9 @@ require 'securerandom'
 require File.expand_path('io_utils.rb', File.dirname(__FILE__))
 require File.expand_path('http_utils.rb', File.dirname(__FILE__))
 
-class PW
-  DEFAULT_DIR = ".pw"
+DEFAULT_DIR = ".pw"
+
+class PW  
   WORDLISTS = {
     "large": "https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt",
     "short1": "https://www.eff.org/files/2016/09/08/eff_short_wordlist_1.txt",
@@ -55,8 +56,7 @@ def generate(file, word_count, separator, num=false, special=false, capital=fals
 
   pw = chosen_words.join(separator)
   pw << extras.join
-
-  IoUtils.copy_to_clipboard(pw, true)
+  pw
 end
 
 def parse_options
@@ -64,34 +64,46 @@ def parse_options
     separator: "-",
     word_count: 6,
     word_list: "short1.txt",
+    initialize: false,
+    print: false,
   }
   OptionParser.new do |opts|
     opts.banner = "usage: pw [option]"
-    opts.on("-h", "--help", "show this help") { puts opts }
-    opts.on("-w", "--words WORDS", Integer, "number of words to include") { |c| options[:word_count] = c }
+    opts.on("-h", "--help", "show this help") { puts opts; exit 0 }
+    opts.on("-w=WORDS", "--words=WORDS", Integer, "number of words to include") { |c| options[:word_count] = c }
     opts.on("-b", "--between", "word separator (default '-')")
     opts.on("-l", "--large", "use EFF large wordlist") { options[:word_list] = "large.txt" }
     opts.on("-s", "--short2", "use EFF short wordlist 2 (default is short wordlist 1)") { options[:word_list] = "short2.txt" }
+    opts.on("-p", "--print", "print the password to stdout (as well as copy to clipboard)") { options[:print] = true }
     opts.on("--initialize", "get the EFF lists and get passwording!") { options[:initialize] = true }
     opts.on("--capital", "include capital letters") { options[:capital] = true }
     opts.on("--numbers", "include numbers") { options[:num] = true }
     opts.on("--special", "include special chars") { options[:special] = true }
-    opts.on("--complex", "include number/special char/capital at the end of each word (dependong on which is selected)") { options[:complex] = true }
-    opts.on("--custom CUSTOM", "path to custom wordlist") { |c| options[:custom] = c }
+    opts.on("--complex", "include number/capital/special char at the end of each word (depending on which is selected)") { options[:complex] = true }
+    opts.on("--custom=CUSTOM", "path to custom wordlist") { |c| options[:custom] = c }
   end.parse!
   options
 end
 
-def init
-  initializer = PW.new()
-  initializer.get_data()
+def needs_init
+  path = File.join(ENV['HOME'], DEFAULT_DIR)
+  !Dir.exist?(path)
+end
+
+def init_if_needed(requested)
+  if requested || needs_init
+    puts 'initializing...'
+    initializer = PW.new()
+    initializer.get_data()
+  end
 end
 
 def main
   options = parse_options
-  init unless !options[:initialize]
+  init_if_needed(options[:initialize])
   path = options[:custom] ? options[:custom] : File.join(ENV['HOME'], ".pw", options[:word_list])
-  generate(path, options[:word_count], options[:separator], options[:num], options[:special], options[:capital], options[:complex])
+  pw = generate(path, options[:word_count], options[:separator], options[:num], options[:special], options[:capital], options[:complex])
+  IoUtils.copy_to_clipboard(pw, options[:print])
 rescue StandardError => e
   warn "error: #{e.message}"
   exit 1
