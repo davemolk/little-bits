@@ -8,11 +8,16 @@ def help
     usage: logs <codebase> [options]
     -n, --namespace   which namespace
     -d, --dry         print, don't copy to clipboard
+    -e, --extra       string to append to cmd, like --since=5h
     -h, --help        this!
   HELP
 end
 
 def gc(name, extra)
+  if name.nil?
+    warn "use -n and the number of the dev env"
+    exit 1
+  end
   cmd = "kubectl -n gcdev#{name} logs deployment/hub"
   extra ? cmd += " #{extra}" : cmd += " -f" 
   return cmd
